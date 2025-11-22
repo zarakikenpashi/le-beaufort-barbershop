@@ -68,7 +68,7 @@ const Banner = () => (
 );
 
 const Wrapper = ({ children }) => (
-  <div className="min-h-screen bg-linear-to-b from-gray-100 to-gray-200 overflow-hidden">
+  <div className="h-screen bg-linear-to-b from-gray-100 to-gray-200 overflow-hidden">
     {children}
   </div>
 );
