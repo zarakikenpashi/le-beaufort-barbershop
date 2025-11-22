@@ -431,32 +431,67 @@ function Demo() {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleScratchComplete = async ({ percentage }) => {
-    console.log('Scratched:', percentage.toFixed(2) + '%');
-    const reward = getRandomReward();
-    setWonReward(reward);
-    setResult('win');
+  // const handleScratchComplete = async ({ percentage }) => {
+  //   console.log('Scratched:', percentage.toFixed(2) + '%');
+  //   const reward = getRandomReward();
+  //   setWonReward(reward);
+  //   setResult('win');
     
-    // Collecter toutes les données
-    const collectedData = {
-      nomPrenom: formData.name,
-      contact: formData.whatsapp,
-      trancheAge: formData.ageRange,
-      note: formData.rating,
-      noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
-      prix: formData.price,
-      recompense: reward.title,
-      recompenseId: reward.id,
-      date: new Date().toISOString(),
-      timestamp: Date.now()
-    };
+  //   const collectedData = {
+  //     nomPrenom: formData.name,
+  //     contact: formData.whatsapp,
+  //     trancheAge: formData.ageRange,
+  //     note: formData.rating,
+  //     noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
+  //     prix: formData.price,
+  //     recompense: reward.title,
+  //     recompenseId: reward.id,
+  //     date: new Date().toISOString(),
+  //     timestamp: Date.now()
+  //   };
     
-    // Afficher les données collectées dans la console
-    console.log('📊 Données collectées:', collectedData);
+  //   // Afficher les données collectées dans la console
+  //   console.log('📊 Données collectées:', collectedData);
     
-    // Ici vous pouvez envoyer les données à votre backend
-    // Exemple: await fetch('/api/submissions', { method: 'POST', body: JSON.stringify(collectedData) });
+  //   // Ici vous pouvez envoyer les données à votre backend
+  //   // Exemple: await fetch('/api/submissions', { method: 'POST', body: JSON.stringify(collectedData) });
+  // };
+
+
+const handleScratchComplete = async ({ percentage }) => {
+  console.log('Scratched:', percentage.toFixed(2) + '%');
+  const reward = getRandomReward();
+  setWonReward(reward);
+  setResult('win');
+  
+  const collectedData = {
+    nomPrenom: formData.name,
+    contact: formData.whatsapp,
+    trancheAge: formData.ageRange,
+    //note: formData.rating,
+    noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
+    prix: formData.price,
+    recompense: reward.title,
+    //recompenseId: reward.id,
+    date: new Date().toISOString(),
+    //timestamp: Date.now()
   };
+  
+  // Envoyer à Google Sheets
+  try {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbxBze52yhJrG9wPYcKlAN0XSul7nEPZJwn182vELI6jCI0uEPHraOFGThw26QyhJ5OZjQ/exec', {
+      method: 'POST',
+      mode: 'no-cors', // Important pour Apps Script
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(collectedData)
+    });
+    console.log('✅ Données envoyées à Google Sheets');
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'envoi:', error);
+  }
+};
 
   const handleReset = () => {
     setStep(1);
@@ -541,7 +576,7 @@ function Demo() {
                 />
                 <Input
                   label="Prix de ta coupe"
-                  type="text"
+                  type="number"
                   placeholder="Elle t'a couté combien"
                   value={formData.price}
                   onChange={(e) => updateFormData('price', e.target.value)}
@@ -582,11 +617,11 @@ function Demo() {
 
                 {result === 'win' && wonReward && <WinMessage reward={wonReward} />}
 
-                {result && (
+                {/* result && (
                   <Button onClick={handleReset}>
                     Recommencer
                   </Button>
-                )}
+                )*/}
               </div>
             )}
           </div>
