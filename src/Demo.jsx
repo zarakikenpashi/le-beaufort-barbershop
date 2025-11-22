@@ -41,7 +41,7 @@ const REWARDS = [
     description: "À utiliser dans les 30 jours", 
     emoji: "💰",
     color: "from-yellow-500 to-yellow-700",
-    probability: 0.25
+    probability: 0.20
   },
   { 
     id: 5, 
@@ -49,8 +49,16 @@ const REWARDS = [
     description: "Sur ta prochaine prestation", 
     emoji: "🎁",
     color: "from-orange-500 to-orange-700",
-    probability: 0.45
+    probability: 0.30
   },
+  {
+    id: 0,
+    title: "Pas de chance cette fois !",
+    description: "Reviens nous voir bientôt pour une nouvelle chance 🙏",
+    emoji: "😔",
+    color: "from-gray-500 to-gray-700",
+    probability: 0.20 // 20% de chance de ne rien gagner
+  }
 ];
 
 const Banner = () => (
@@ -303,55 +311,69 @@ const ScratchCard = ({ width = 280, height = 280, finishPercent = 40, onComplete
 
 const WinMessage = ({ reward }) => {
   const [confetti, setConfetti] = useState([]);
+  const isWin = reward.id !== 0; // Si c'est pas l'ID 0, c'est un gain
 
   useEffect(() => {
-    const pieces = [];
-    for (let i = 0; i < 50; i++) {
-      pieces.push({
-        id: i,
-        x: Math.random() * 100,
-        delay: Math.random() * 0.5,
-        duration: 2 + Math.random() * 2,
-      });
+    if (isWin) {
+      const pieces = [];
+      for (let i = 0; i < 50; i++) {
+        pieces.push({
+          id: i,
+          x: Math.random() * 100,
+          delay: Math.random() * 0.5,
+          duration: 2 + Math.random() * 2,
+        });
+      }
+      setConfetti(pieces);
     }
-    setConfetti(pieces);
-  }, []);
+  }, [isWin]);
 
   return (
     <>
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-        {confetti.map((piece) => (
-          <div
-            key={piece.id}
-            className="absolute w-2 h-2 animate-fall"
-            style={{
-              left: `${piece.x}%`,
-              top: '-10px',
-              backgroundColor: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'][piece.id % 5],
-              animationDelay: `${piece.delay}s`,
-              animationDuration: `${piece.duration}s`,
-            }}
-          />
-        ))}
-      </div>
-      <style>{`
-        @keyframes fall {
-          to {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-          }
-        }
-        .animate-fall {
-          animation: fall linear forwards;
-        }
-      `}</style>
+      {isWin && (
+        <>
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+            {confetti.map((piece) => (
+              <div
+                key={piece.id}
+                className="absolute w-2 h-2 animate-fall"
+                style={{
+                  left: `${piece.x}%`,
+                  top: '-10px',
+                  backgroundColor: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'][piece.id % 5],
+                  animationDelay: `${piece.delay}s`,
+                  animationDuration: `${piece.duration}s`,
+                }}
+              />
+            ))}
+          </div>
+          <style>{`
+            @keyframes fall {
+              to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+              }
+            }
+            .animate-fall {
+              animation: fall linear forwards;
+            }
+          `}</style>
+        </>
+      )}
       <div className="text-center space-y-6 py-6">
-        <div className={`bg-linear-to-r ${reward.color} text-white rounded-lg p-8 shadow-2xl transform scale-105`}>
+        <div className={`bg-linear-to-r ${reward.color} text-white rounded-lg p-8 shadow-2xl transform ${isWin ? 'scale-105' : ''}`}>
           <div className="text-6xl mb-4">{reward.emoji}</div>
-          <h2 className="text-3xl font-bold mb-2">🎉 Félicitations !</h2>
+          <h2 className="text-3xl font-bold mb-2">
+            {isWin ? '🎉 Félicitations !' : 'Dommage !'}
+          </h2>
           <div className="text-2xl font-bold mb-2">{reward.title}</div>
           <p className="text-lg opacity-90">{reward.description}</p>
         </div>
+        {!isWin && (
+          <p className="text-gray-600 text-sm">
+            Continue à nous soutenir et tente ta chance la prochaine fois ! 💪
+          </p>
+        )}
       </div>
     </>
   );
@@ -409,11 +431,31 @@ function Demo() {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleScratchComplete = ({ percentage }) => {
+  const handleScratchComplete = async ({ percentage }) => {
     console.log('Scratched:', percentage.toFixed(2) + '%');
     const reward = getRandomReward();
     setWonReward(reward);
     setResult('win');
+    
+    // Collecter toutes les données
+    const collectedData = {
+      nomPrenom: formData.name,
+      contact: formData.whatsapp,
+      trancheAge: formData.ageRange,
+      note: formData.rating,
+      noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
+      prix: formData.price,
+      recompense: reward.title,
+      recompenseId: reward.id,
+      date: new Date().toISOString(),
+      timestamp: Date.now()
+    };
+    
+    // Afficher les données collectées dans la console
+    console.log('📊 Données collectées:', collectedData);
+    
+    // Ici vous pouvez envoyer les données à votre backend
+    // Exemple: await fetch('/api/submissions', { method: 'POST', body: JSON.stringify(collectedData) });
   };
 
   const handleReset = () => {
