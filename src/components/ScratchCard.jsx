@@ -30,28 +30,28 @@ export const ScratchCard = ({
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    // Default scratch texture image
-    const defaultTexture = '/ui.png';
-
-    // Draw initial scratch layer with base color
+    // Default scratch texture
     ctx.fillStyle = customBrush?.color || '#E0E0E0';
     ctx.fillRect(0, 0, width, height);
 
-    // Add texture
-    const textureImg = new Image();
-    textureImg.crossOrigin = 'anonymous';
-    textureImg.src = customBrush?.image || defaultTexture;
-    
-    textureImg.onload = () => {
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.drawImage(textureImg, 0, 0, width, height);
-      ctx.globalCompositeOperation = 'destination-out';
-    };
+    // Add texture if provided
+    if (customBrush?.image) {
+      const textureImg = new Image();
+      textureImg.crossOrigin = 'anonymous';
+      textureImg.src = customBrush.image;
+      
+      textureImg.onload = () => {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.drawImage(textureImg, 0, 0, width, height);
+        ctx.globalCompositeOperation = 'destination-out';
+      };
 
-    textureImg.onerror = () => {
-      // Fallback to solid color if image fails to load
+      textureImg.onerror = () => {
+        ctx.globalCompositeOperation = 'destination-out';
+      };
+    } else {
       ctx.globalCompositeOperation = 'destination-out';
-    };
+    }
   }, [width, height, customBrush]);
 
   // Check scratch percentage
@@ -112,39 +112,38 @@ export const ScratchCard = ({
     }
   }, [finishPercent, onComplete, customCheckZone]);
 
-  // Scratch function
-  const scratch = useCallback((x, y) => {
+  // Scratch function with better mobile support
+  const scratch = useCallback((clientX, clientY) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    
+    const x = (clientX - rect.left) * (canvas.width / rect.width) / dpr;
+    const y = (clientY - rect.top) * (canvas.height / rect.height) / dpr;
 
     ctx.beginPath();
-    ctx.arc(
-      (x - rect.left) * scaleX / (window.devicePixelRatio || 1),
-      (y - rect.top) * scaleY / (window.devicePixelRatio || 1),
-      brushSize,
-      0,
-      2 * Math.PI
-    );
+    ctx.arc(x, y, brushSize, 0, 2 * Math.PI);
     ctx.fill();
   }, [brushSize]);
 
-  // Event handlers
+  // Event handlers with better touch support
   const handlePointerDown = useCallback((e) => {
     if (isCompleteRef.current) return;
+    
     setIsScratching(true);
-    const { clientX, clientY } = e.touches ? e.touches[0] : e;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     scratch(clientX, clientY);
   }, [scratch]);
 
   const handlePointerMove = useCallback((e) => {
     if (!isScratching || isCompleteRef.current) return;
-    e.preventDefault();
-    const { clientX, clientY } = e.touches ? e.touches[0] : e;
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     scratch(clientX, clientY);
   }, [isScratching, scratch]);
 
@@ -158,15 +157,20 @@ export const ScratchCard = ({
   // Setup global event listeners
   useEffect(() => {
     if (isScratching) {
+      const handleMove = (e) => {
+        e.preventDefault();
+        handlePointerMove(e);
+      };
+
       window.addEventListener('mousemove', handlePointerMove);
       window.addEventListener('mouseup', handlePointerUp);
-      window.addEventListener('touchmove', handlePointerMove, { passive: false });
+      window.addEventListener('touchmove', handleMove, { passive: false });
       window.addEventListener('touchend', handlePointerUp);
 
       return () => {
         window.removeEventListener('mousemove', handlePointerMove);
         window.removeEventListener('mouseup', handlePointerUp);
-        window.removeEventListener('touchmove', handlePointerMove);
+        window.removeEventListener('touchmove', handleMove);
         window.removeEventListener('touchend', handlePointerUp);
       };
     }
@@ -179,21 +183,27 @@ export const ScratchCard = ({
         position: 'relative',
         width: `${width}px`,
         height: `${height}px`,
+        maxWidth: '100%',
         userSelect: 'none',
+        WebkitUserSelect: 'none',
         touchAction: 'none',
-        border:"4px solid #c7c6cf",
-        padding:"12px",
-        borderRadius:"8px"
+        WebkitTouchCallout: 'none',
+        border: '4px solid #c7c6cf',
+        padding: '12px',
+        borderRadius: '8px',
+        boxSizing: 'border-box',
       }}
     >
       {/* Content underneath */}
       <div
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
+          top: '12px',
+          left: '12px',
+          right: '12px',
+          bottom: '12px',
+          width: 'calc(100% - 24px)',
+          height: 'calc(100% - 24px)',
         }}
       >
         {image ? (
@@ -205,7 +215,9 @@ export const ScratchCard = ({
               height: '100%',
               objectFit: 'cover',
               pointerEvents: 'none',
+              userSelect: 'none',
             }}
+            draggable="false"
           />
         ) : (
           children
@@ -216,17 +228,22 @@ export const ScratchCard = ({
       <canvas
         ref={canvasRef}
         onMouseDown={handlePointerDown}
-        onTouchStart={handlePointerDown}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          handlePointerDown(e);
+        }}
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
+          top: '12px',
+          left: '12px',
+          width: 'calc(100% - 24px)',
+          height: 'calc(100% - 24px)',
           cursor: isScratching ? 'grabbing' : 'grab',
           opacity: isComplete && fadeOutOnComplete ? 0 : 1,
           transition: fadeOutOnComplete ? 'opacity 0.3s ease-out' : 'none',
           pointerEvents: isComplete ? 'none' : 'auto',
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'none',
         }}
       />
     </div>
