@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 const EMOJIS = [
   { value: 1, label: "😤", description: "Mou-mou, c'était pas ça" },
   { value: 2, label: "🙂", description: "Bon, ça peut aller" },
@@ -23,7 +24,7 @@ const REWARDS = [
     description: "Ta prochaine coupe est offerte !", 
     emoji: "✂️",
     color: "from-purple-500 to-purple-700",
-    probability: 0.05 // 5%
+    probability: 0.05
   },
   { 
     id: 2, 
@@ -31,7 +32,7 @@ const REWARDS = [
     description: "Sur ta prochaine visite", 
     emoji: "🎉",
     color: "from-green-500 to-green-700",
-    probability: 0.10 // 10%
+    probability: 0.10
   },
   { 
     id: 3, 
@@ -39,7 +40,7 @@ const REWARDS = [
     description: "Valable sur ta prochaine coupe", 
     emoji: "🎨",
     color: "from-blue-500 to-blue-700",
-    probability: 0.15 // 15%
+    probability: 0.15
   },
   { 
     id: 4, 
@@ -47,7 +48,7 @@ const REWARDS = [
     description: "À utiliser dans les 30 jours", 
     emoji: "💰",
     color: "from-yellow-500 to-yellow-700",
-    probability: 0.25 // 25%
+    probability: 0.25
   },
   { 
     id: 5, 
@@ -55,11 +56,10 @@ const REWARDS = [
     description: "Sur ta prochaine prestation", 
     emoji: "🎁",
     color: "from-orange-500 to-orange-700",
-    probability: 0.45 // 45%
+    probability: 0.45
   },
 ];
 
-// Composants réutilisables
 const Banner = () => (
   <div className="bg-linear-to-r from-red-600 to-red-800 text-white py-16 text-center">
     <h1 className="text-4xl font-bold mb-2">BARBER SHOP</h1>
@@ -68,7 +68,7 @@ const Banner = () => (
 );
 
 const Wrapper = ({ children }) => (
-  <div className="min-h-screen bg-linear-to-b from-gray-100 to-gray-200 overflow-hidden">
+  <div className="min-h-screen bg-linear-to-b from-gray-100 to-gray-200 overflow-x-hidden">
     {children}
   </div>
 );
@@ -126,29 +126,33 @@ const EmojiRating = ({ emojis, selected, onSelect }) => (
         </button>
       ))}
     </div>
-    {/* {selected && (
-      <p className="text-center text-gray-600 italic">
-        {emojis.find(e => e.value === selected)?.description}
-      </p>
-    )} */}
   </div>
 );
 
+// 🔥 COMPOSANT SCRATCH CARD AVEC SUPPORT TACTILE COMPLET
 const ScratchCard = ({ onComplete }) => {
   const [scratched, setScratched] = useState(0);
   const [isScratching, setIsScratching] = useState(false);
 
-  const handleMouseDown = () => setIsScratching(true);
-  const handleMouseUp = () => setIsScratching(false);
+  const handleStart = (e) => {
+    e.preventDefault();
+    setIsScratching(true);
+  };
 
-  const handleMouseMove = (e) => {
+  const handleEnd = () => {
+    setIsScratching(false);
+  };
+
+  const handleMove = (e) => {
     if (!isScratching) return;
+    e.preventDefault();
     
     const newPercentage = Math.min(scratched + 2, 100);
     setScratched(newPercentage);
 
     if (newPercentage >= SCRATCH_CONFIG.finishPercent) {
       onComplete({ percentage: newPercentage });
+      setIsScratching(false);
     }
   };
 
@@ -156,24 +160,36 @@ const ScratchCard = ({ onComplete }) => {
     <div className="flex flex-col items-center gap-4">
       <p className="text-sm text-gray-600">Gratte pour découvrir ton prix !</p>
       <div
-        className="relative bg-linear-to-br from-yellow-400 to-yellow-600 rounded-lg overflow-hidden cursor-pointer shadow-xl"
-        style={{ width: SCRATCH_CONFIG.width, height: SCRATCH_CONFIG.height }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onMouseMove={handleMouseMove}
+        className="relative bg-linear-to-br from-yellow-400 to-yellow-600 rounded-lg overflow-hidden shadow-xl select-none"
+        style={{ 
+          width: SCRATCH_CONFIG.width, 
+          height: SCRATCH_CONFIG.height,
+          touchAction: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none'
+        }}
+        onMouseDown={handleStart}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+        onMouseMove={handleMove}
+        onTouchStart={handleStart}
+        onTouchEnd={handleEnd}
+        onTouchMove={handleMove}
       >
         <div className="absolute inset-0 flex items-center justify-center text-6xl">
           🎁
         </div>
         <div
-          className="absolute inset-0 bg-gray-300 transition-opacity"
+          className="absolute inset-0 bg-gray-300 transition-opacity pointer-events-none"
           style={{ opacity: 1 - scratched / 100 }}
         >
           <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold">
             GRATTE ICI
           </div>
         </div>
+      </div>
+      <div className="text-xs text-gray-500">
+        {scratched.toFixed(0)}% gratté
       </div>
     </div>
   );
@@ -236,10 +252,10 @@ const WinMessage = ({ reward }) => {
 };
 
 const Button = ({ children, variant = "primary", ...props }) => {
-  const baseClasses = "w-full rounded p-3 font-medium transition-all cursor-pointer";
+  const baseClasses = "w-full rounded p-3 font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
-    primary: "bg-black text-white hover:bg-gray-800",
-    secondary: "bg-gray-300 text-gray-800 hover:bg-gray-400",
+    primary: "bg-black text-white hover:bg-gray-800 disabled:hover:bg-black",
+    secondary: "bg-gray-300 text-gray-800 hover:bg-gray-400 disabled:hover:bg-gray-300",
   };
 
   return (
@@ -249,7 +265,6 @@ const Button = ({ children, variant = "primary", ...props }) => {
   );
 };
 
-
 function Demo() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -257,6 +272,7 @@ function Demo() {
     ageRange: "",
     whatsapp: "",
     rating: null,
+    price: "",
   });
   const [result, setResult] = useState(null);
   const [wonReward, setWonReward] = useState(null);
@@ -296,18 +312,18 @@ function Demo() {
 
   const handleReset = () => {
     setStep(1);
-    setFormData({ name: "", ageRange: "", whatsapp: "", rating: null });
+    setFormData({ name: "", ageRange: "", whatsapp: "", rating: null, price: "" });
     setResult(null);
     setWonReward(null);
   };
 
   const isStep1Valid = formData.name && formData.ageRange && formData.whatsapp;
-  const isStep2Valid = formData.rating !== null;
+  const isStep2Valid = formData.rating !== null && formData.price;
 
   return (
     <Wrapper>
       <Banner />
-      <div className="relative">
+      <div className="relative pb-20">
         <div className="absolute inset-0 -top-12">
           <div className="bg-white w-[95%] max-w-md m-auto px-4 py-8 shadow-xl rounded-lg">
             {/* Progress bar */}
@@ -332,98 +348,89 @@ function Demo() {
               </div>
             </div>
 
+            {/* STEP 1 */}
+            {step === 1 && (
+              <div className="flex flex-col gap-y-4">
+                <Input
+                  label="Nom & Prénom"
+                  type="text"
+                  placeholder="Ton blaze complet"
+                  value={formData.name}
+                  onChange={(e) => updateFormData('name', e.target.value)}
+                  required
+                />
 
-            <div onSubmit={handleNext}>
-              {/* STEP 1 */}
-              {step === 1 && (
-                <div className="flex flex-col gap-y-4">
-                  <Input
-                    label="Nom & Prénom"
-                    type="text"
-                    placeholder="Ton blaze complet"
-                    value={formData.name}
-                    onChange={(e) => updateFormData('name', e.target.value)}
-                    required
-                  />
+                <RadioGroup
+                  label="Tranche d'âge"
+                  options={AGE_RANGES}
+                  name="ageRange"
+                  value={formData.ageRange}
+                  onChange={(value) => updateFormData('ageRange', value)}
+                />
 
-                  <RadioGroup
-                    label="Tranche d'âge"
-                    options={AGE_RANGES}
-                    name="ageRange"
-                    value={formData.ageRange}
-                    onChange={(value) => updateFormData('ageRange', value)}
-                  />
+                <Input
+                  label="WhatsApp"
+                  type="tel"
+                  placeholder="Laisse ton numéro"
+                  value={formData.whatsapp}
+                  onChange={(e) => updateFormData('whatsapp', e.target.value)}
+                  required
+                />
 
-                  <Input
-                    label="WhatsApp"
-                    type="tel"
-                    placeholder="Laisse ton numéro"
-                    value={formData.whatsapp}
-                    onChange={(e) => updateFormData('whatsapp', e.target.value)}
-                    required
-                  />
+                <Button onClick={handleNext} disabled={!isStep1Valid}>
+                  Continuer
+                </Button>
+              </div>
+            )}
 
-                  <Button onClick={handleNext} disabled={!isStep1Valid}>
+            {/* STEP 2 */}
+            {step === 2 && (
+              <div className="flex flex-col gap-y-4">
+                <EmojiRating
+                  emojis={EMOJIS}
+                  selected={formData.rating}
+                  onSelect={(value) => updateFormData('rating', value)}
+                />
+                <Input
+                  label="Prix de ta coupe"
+                  type="text"
+                  placeholder="Elle t'a couté combien"
+                  value={formData.price}
+                  onChange={(e) => updateFormData('price', e.target.value)}
+                  required
+                />
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={handlePrevious}>
+                    Retour
+                  </Button>
+                  <Button onClick={handleNext} disabled={!isStep2Valid}>
                     Continuer
                   </Button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* STEP 2 */}
-              {step === 2 && (
-                <div className="flex flex-col gap-y-4">
-                  <EmojiRating
-                    emojis={EMOJIS}
-                    selected={formData.rating}
-                    onSelect={(value) => updateFormData('rating', value)}
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Elle t'a couté combien"
-                    value={formData.price}
-                    onChange={(e) => updateFormData('price', e.target.value)}
-                    required
-                  />
-                  <div className="flex gap-2">
+            {/* STEP 3 */}
+            {step === 3 && (
+              <div className="flex flex-col gap-4">
+                {!result && (
+                  <>
+                    <ScratchCard onComplete={handleScratchComplete} />
                     <Button variant="secondary" onClick={handlePrevious}>
                       Retour
                     </Button>
-                    <Button onClick={handleNext} disabled={!isStep2Valid}>
-                      Continuer
-                    </Button>
-                  </div>
-                </div>
-              )}
+                  </>
+                )}
 
-              {/* STEP 3 */}
-              {step === 3 && (
-                <div className="flex flex-col gap-4">
-                  {!result && (
-                    <>
-                      <ScratchCard onComplete={handleScratchComplete} />
-                      <Button onClick={handlePrevious}>
-                        Retour
-                      </Button>
-                    </>
-                  )}
+                {result === 'win' && wonReward && <WinMessage reward={wonReward} />}
 
-                  {result === 'win' && wonReward && <WinMessage reward={wonReward} />}
-                  
-                  {result === 'lose' && (
-                    <div className="text-center space-y-4 py-6">
-                      <h2 className="text-2xl font-bold text-gray-600">😔 Pas cette fois</h2>
-                      <p>Reviens bientôt pour une nouvelle chance !</p>
-                    </div>
-                  )}
-
-                  {result && (
-                    <Button onClick={handleReset}>
-                      Recommencer
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+                {result && (
+                  <Button onClick={handleReset}>
+                    Recommencer
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
