@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 const EMOJIS = [
   { value: 1, label: "😤", description: "Mou-mou, c'était pas ça" },
@@ -9,13 +9,6 @@ const EMOJIS = [
 ];
 
 const AGE_RANGES = ["Enfant", "Jeune", "Adulte", "Vieux père"];
-
-const SCRATCH_CONFIG = {
-  width: 280,
-  height: 280,
-  finishPercent: 40,
-  brushSize: 30,
-};
 
 const REWARDS = [
   { 
@@ -129,67 +122,180 @@ const EmojiRating = ({ emojis, selected, onSelect }) => (
   </div>
 );
 
-// 🔥 COMPOSANT SCRATCH CARD AVEC SUPPORT TACTILE COMPLET
-const ScratchCard = ({ onComplete }) => {
-  const [scratched, setScratched] = useState(0);
+// 🎨 COMPOSANT SCRATCH CARD CANVAS AVEC SUPPORT TACTILE
+const ScratchCard = ({ width = 280, height = 280, finishPercent = 40, onComplete, brushSize = 25, children }) => {
+  const [isComplete, setIsComplete] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const isCompleteRef = useRef(false);
 
-  const handleStart = (e) => {
-    e.preventDefault();
-    setIsScratching(true);
-  };
+  // Initialize canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const handleEnd = () => {
-    setIsScratching(false);
-  };
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const dpr = window.devicePixelRatio || 1;
 
-  const handleMove = (e) => {
-    if (!isScratching) return;
-    e.preventDefault();
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Draw scratch layer with silver color
+    ctx.fillStyle = '#C0C0C0';
+    ctx.fillRect(0, 0, width, height);
     
-    const newPercentage = Math.min(scratched + 2, 100);
-    setScratched(newPercentage);
+    // Add text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GRATTE ICI', width / 2, height / 2);
+    
+    ctx.globalCompositeOperation = 'destination-out';
+  }, [width, height]);
 
-    if (newPercentage >= SCRATCH_CONFIG.finishPercent) {
-      onComplete({ percentage: newPercentage });
-      setIsScratching(false);
+  // Check scratch percentage
+  const checkScratchPercentage = useCallback(() => {
+    if (isCompleteRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    
+    let transparent = 0;
+    const total = pixels.length / 4;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] < 128) {
+        transparent++;
+      }
     }
-  };
+
+    const percentage = (transparent / total) * 100;
+
+    if (percentage >= finishPercent) {
+      isCompleteRef.current = true;
+      setIsComplete(true);
+      
+      if (onComplete) {
+        onComplete({ percentage, canvas });
+      }
+    }
+  }, [finishPercent, onComplete]);
+
+  // Scratch function with better mobile support
+  const scratch = useCallback((clientX, clientY) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    const x = (clientX - rect.left) * (canvas.width / rect.width) / dpr;
+    const y = (clientY - rect.top) * (canvas.height / rect.height) / dpr;
+
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize, 0, 2 * Math.PI);
+    ctx.fill();
+  }, [brushSize]);
+
+  // Event handlers
+  const handlePointerDown = useCallback((e) => {
+    if (isCompleteRef.current) return;
+    
+    setIsScratching(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    scratch(clientX, clientY);
+  }, [scratch]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isScratching || isCompleteRef.current) return;
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    scratch(clientX, clientY);
+  }, [isScratching, scratch]);
+
+  const handlePointerUp = useCallback(() => {
+    if (isScratching) {
+      setIsScratching(false);
+      setTimeout(checkScratchPercentage, 100);
+    }
+  }, [isScratching, checkScratchPercentage]);
+
+  // Setup global event listeners
+  useEffect(() => {
+    if (isScratching) {
+      const handleMove = (e) => {
+        e.preventDefault();
+        handlePointerMove(e);
+      };
+
+      window.addEventListener('mousemove', handlePointerMove);
+      window.addEventListener('mouseup', handlePointerUp);
+      window.addEventListener('touchmove', handleMove, { passive: false });
+      window.addEventListener('touchend', handlePointerUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handlePointerMove);
+        window.removeEventListener('mouseup', handlePointerUp);
+        window.removeEventListener('touchmove', handleMove);
+        window.removeEventListener('touchend', handlePointerUp);
+      };
+    }
+  }, [isScratching, handlePointerMove, handlePointerUp]);
 
   return (
     <div className="flex flex-col items-center gap-4">
       <p className="text-sm text-gray-600">Gratte pour découvrir ton prix !</p>
       <div
-        className="relative bg-linear-to-br from-yellow-400 to-yellow-600 rounded-lg overflow-hidden shadow-xl select-none"
-        style={{ 
-          width: SCRATCH_CONFIG.width, 
-          height: SCRATCH_CONFIG.height,
-          touchAction: 'none',
+        ref={containerRef}
+        style={{
+          position: 'relative',
+          width: `${width}px`,
+          height: `${height}px`,
+          maxWidth: '100%',
+          userSelect: 'none',
           WebkitUserSelect: 'none',
-          WebkitTouchCallout: 'none'
+          touchAction: 'none',
+          WebkitTouchCallout: 'none',
         }}
-        onMouseDown={handleStart}
-        onMouseUp={handleEnd}
-        onMouseLeave={handleEnd}
-        onMouseMove={handleMove}
-        onTouchStart={handleStart}
-        onTouchEnd={handleEnd}
-        onTouchMove={handleMove}
+        className="border-4 border-gray-300 rounded-lg shadow-xl overflow-hidden"
       >
-        <div className="absolute inset-0 flex items-center justify-center text-6xl">
-          🎁
+        {/* Content underneath */}
+        <div className="absolute inset-0 w-full h-full">
+          {children}
         </div>
-        <div
-          className="absolute inset-0 bg-gray-300 transition-opacity pointer-events-none"
-          style={{ opacity: 1 - scratched / 100 }}
-        >
-          <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold">
-            GRATTE ICI
-          </div>
-        </div>
-      </div>
-      <div className="text-xs text-gray-500">
-        {scratched.toFixed(0)}% gratté
+
+        {/* Scratch canvas */}
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handlePointerDown}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            handlePointerDown(e);
+          }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            cursor: isScratching ? 'grabbing' : 'grab',
+            opacity: isComplete ? 0 : 1,
+            transition: 'opacity 0.3s ease-out',
+            pointerEvents: isComplete ? 'none' : 'auto',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'none',
+          }}
+        />
       </div>
     </div>
   );
@@ -415,7 +521,17 @@ function Demo() {
               <div className="flex flex-col gap-4">
                 {!result && (
                   <>
-                    <ScratchCard onComplete={handleScratchComplete} />
+                    <ScratchCard
+                      width={280}
+                      height={280}
+                      finishPercent={40}
+                      brushSize={25}
+                      onComplete={handleScratchComplete}
+                    >
+                      <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-yellow-400 to-yellow-600 text-6xl">
+                        🎁
+                      </div>
+                    </ScratchCard>
                     <Button variant="secondary" onClick={handlePrevious}>
                       Retour
                     </Button>
