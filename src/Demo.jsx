@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-
+import { IoLogoWhatsapp } from "react-icons/io";
 const EMOJIS = [
   { value: 1, label: "😤", description: "Mou-mou, c'était pas ça" },
   { value: 2, label: "🙂", description: "Bon, ça peut aller" },
@@ -8,7 +8,7 @@ const EMOJIS = [
   { value: 5, label: "🔥", description: "La coupe a parlé !" },
 ];
 
-const AGE_RANGES = ["Enfant", "Jeune", "Adulte", "Vieux père"];
+const AGE_RANGES = ["Enfant", "Jeune", "Adulte"];
 
 const REWARDS = [
   { 
@@ -17,7 +17,7 @@ const REWARDS = [
     description: "Ta prochaine coupe est offerte !", 
     emoji: "✂️",
     color: "from-purple-500 to-purple-700",
-    probability: 0.05
+    probability: 0.04
   },
   { 
     id: 2, 
@@ -25,7 +25,7 @@ const REWARDS = [
     description: "Sur ta prochaine visite", 
     emoji: "🎉",
     color: "from-green-500 to-green-700",
-    probability: 0.10
+    probability: 0.04
   },
   { 
     id: 3, 
@@ -33,7 +33,7 @@ const REWARDS = [
     description: "Valable sur ta prochaine coupe", 
     emoji: "🎨",
     color: "from-blue-500 to-blue-700",
-    probability: 0.15
+    probability: 0.04
   },
   { 
     id: 4, 
@@ -41,7 +41,7 @@ const REWARDS = [
     description: "À utiliser dans les 30 jours", 
     emoji: "💰",
     color: "from-yellow-500 to-yellow-700",
-    probability: 0.20
+    probability: 0.04
   },
   { 
     id: 5, 
@@ -49,7 +49,7 @@ const REWARDS = [
     description: "Sur ta prochaine prestation", 
     emoji: "🎁",
     color: "from-orange-500 to-orange-700",
-    probability: 0.30
+    probability: 0.04
   },
   {
     id: 0,
@@ -57,7 +57,7 @@ const REWARDS = [
     description: "Reviens nous voir bientôt pour une nouvelle chance 🙏",
     emoji: "😔",
     color: "from-gray-500 to-gray-700",
-    probability: 0.20 // 20% de chance de ne rien gagner
+    probability: 0.80 // 80% de chance de ne rien gagner
   }
 ];
 
@@ -74,13 +74,31 @@ const Wrapper = ({ children }) => (
   </div>
 );
 
-const Input = ({ label, ...props }) => (
+const Input = ({ label, icon, ...props }) => (
   <div className="flex flex-col gap-y-1">
     <label className="font-medium text-gray-700">{label}</label>
-    <input
+    {icon
+    ? <div className='flex gap-2 items-center border border-zinc-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-red-500'>
+      {icon}
+      <input
+        className="outline-none"
+        {...props}
+      />
+    </div>
+    :<input
       className="w-full border border-zinc-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
       {...props}
     />
+  }
+  </div>
+);
+const Avis = ({ label,...props }) => (
+  <div className="flex flex-col gap-y-1">
+    <label className="font-medium text-gray-700">{label}</label>
+    <textarea 
+      className='w-full border border-zinc-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-red-500'
+      {...props}
+      ></textarea>
   </div>
 );
 
@@ -400,7 +418,7 @@ function Demo() {
     ageRange: "",
     whatsapp: "",
     rating: null,
-    price: "",
+    avis: "",
   });
   const [result, setResult] = useState(null);
   const [wonReward, setWonReward] = useState(null);
@@ -424,42 +442,15 @@ function Demo() {
 
   const handleNext = (e) => {
     e.preventDefault();
-    if (step < 3) setStep(step + 1);
+    if (step < 4) setStep(step + 1);
   };
 
   const handlePrevious = () => {
     if (step > 1) setStep(step - 1);
   };
 
-  // const handleScratchComplete = async ({ percentage }) => {
-  //   console.log('Scratched:', percentage.toFixed(2) + '%');
-  //   const reward = getRandomReward();
-  //   setWonReward(reward);
-  //   setResult('win');
-    
-  //   const collectedData = {
-  //     nomPrenom: formData.name,
-  //     contact: formData.whatsapp,
-  //     trancheAge: formData.ageRange,
-  //     note: formData.rating,
-  //     noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
-  //     prix: formData.price,
-  //     recompense: reward.title,
-  //     recompenseId: reward.id,
-  //     date: new Date().toISOString(),
-  //     timestamp: Date.now()
-  //   };
-    
-  //   // Afficher les données collectées dans la console
-  //   console.log('📊 Données collectées:', collectedData);
-    
-  //   // Ici vous pouvez envoyer les données à votre backend
-  //   // Exemple: await fetch('/api/submissions', { method: 'POST', body: JSON.stringify(collectedData) });
-  // };
-
 
 const handleScratchComplete = async ({ percentage }) => {
-  console.log('Scratched:', percentage.toFixed(2) + '%');
   const reward = getRandomReward();
   setWonReward(reward);
   setResult('win');
@@ -468,18 +459,17 @@ const handleScratchComplete = async ({ percentage }) => {
     nomPrenom: formData.name,
     contact: formData.whatsapp,
     trancheAge: formData.ageRange,
-    //note: formData.rating,
     noteEmoji: EMOJIS.find(e => e.value === formData.rating)?.label,
-    prix: formData.price,
+    avis: formData.avis,
     recompense: reward.title,
-    //recompenseId: reward.id,
     date: new Date().toISOString(),
-    //timestamp: Date.now()
   };
   
   // Envoyer à Google Sheets
   try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbxBze52yhJrG9wPYcKlAN0XSul7nEPZJwn182vELI6jCI0uEPHraOFGThw26QyhJ5OZjQ/exec', {
+    console.log(collectedData);
+    
+    const response = await fetch('https://script.google.com/macros/s/AKfycbwoR5nE2uETkJ4Xl9h68JA-4rr_UTYfPZ4X2NHzSwMppHSD3j5fgPIiIpw33zn5QJ2DzA/exec', {
       method: 'POST',
       mode: 'no-cors', // Important pour Apps Script
       headers: {
@@ -487,21 +477,21 @@ const handleScratchComplete = async ({ percentage }) => {
       },
       body: JSON.stringify(collectedData)
     });
-    console.log('✅ Données envoyées à Google Sheets');
+    //console.log('✅ Données envoyées à Google Sheets');
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi:', error);
+    //console.error('❌ Erreur lors de l\'envoi:', error);
   }
 };
 
   const handleReset = () => {
     setStep(1);
-    setFormData({ name: "", ageRange: "", whatsapp: "", rating: null, price: "" });
+    setFormData({ name: "", ageRange: "", whatsapp: "", rating: null, avis: "" });
     setResult(null);
     setWonReward(null);
   };
 
   const isStep1Valid = formData.name && formData.ageRange && formData.whatsapp;
-  const isStep2Valid = formData.rating !== null && formData.price;
+  const isStep2Valid = formData.rating !== null;
 
   return (
     <Wrapper>
@@ -512,7 +502,7 @@ const handleScratchComplete = async ({ percentage }) => {
             {/* Progress bar */}
             <div className="mb-6">
               <div className="flex justify-between mb-2">
-                {[1, 2, 3].map((s) => (
+                {[1, 2, 3, 4].map((s) => (
                   <div
                     key={s}
                     className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
@@ -537,7 +527,7 @@ const handleScratchComplete = async ({ percentage }) => {
                 <Input
                   label="Nom & Prénom"
                   type="text"
-                  placeholder="Ton blaze complet"
+                  placeholder="Laisse ton nom"
                   value={formData.name}
                   onChange={(e) => updateFormData('name', e.target.value)}
                   required
@@ -550,15 +540,16 @@ const handleScratchComplete = async ({ percentage }) => {
                   value={formData.ageRange}
                   onChange={(value) => updateFormData('ageRange', value)}
                 />
-
                 <Input
                   label="WhatsApp"
+                  icon={<IoLogoWhatsapp className='size-5 text-green-500' />}
                   type="tel"
                   placeholder="Laisse ton numéro"
                   value={formData.whatsapp}
                   onChange={(e) => updateFormData('whatsapp', e.target.value)}
                   required
                 />
+                
 
                 <Button onClick={handleNext} disabled={!isStep1Valid}>
                   Continuer
@@ -574,14 +565,6 @@ const handleScratchComplete = async ({ percentage }) => {
                   selected={formData.rating}
                   onSelect={(value) => updateFormData('rating', value)}
                 />
-                <Input
-                  label="Prix de ta coupe"
-                  type="number"
-                  placeholder="Elle t'a couté combien"
-                  value={formData.price}
-                  onChange={(e) => updateFormData('price', e.target.value)}
-                  required
-                />
                 <div className="flex gap-2">
                   <Button variant="secondary" onClick={handlePrevious}>
                     Retour
@@ -595,6 +578,25 @@ const handleScratchComplete = async ({ percentage }) => {
 
             {/* STEP 3 */}
             {step === 3 && (
+              <div className="flex flex-col gap-y-4">
+                <Avis
+                  label="Avis / Suggestion"
+                  value={formData.avis}
+                  onChange={(e) => updateFormData('avis', e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={handlePrevious}>
+                    Retour
+                  </Button>
+                  <Button onClick={handleNext} disabled={!isStep2Valid}>
+                    Continuer
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4 */}
+            {step === 4 && (
               <div className="flex flex-col gap-4">
                 {!result && (
                   <>
